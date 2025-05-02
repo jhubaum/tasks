@@ -25,6 +25,11 @@ def show_projects(args):
         print(f"Proj '{proj.id}' ({len(proj.tasks)} task(s))")
 
 
+def delete_project(args):
+    s = Storage.pwd(STORAGE_NAME)
+    s.delete_project(args.project)
+    s.save()
+
 
 def create_parsers() -> ArgumentParser:
     parser = ArgumentParser("A file-based task manager")
@@ -43,6 +48,10 @@ def create_parsers() -> ArgumentParser:
     projects_subparsers = projects_parser.add_subparsers()
     projects_show_parser = projects_subparsers.add_parser("show")
     projects_show_parser.set_defaults(func=show_projects)
+
+    projects_delete_parser = projects_subparsers.add_parser("delete")
+    projects_delete_parser.add_argument("project", help="The project id")
+    projects_delete_parser.set_defaults(func=delete_project)
 
 
 

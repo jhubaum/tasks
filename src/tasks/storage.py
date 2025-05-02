@@ -76,4 +76,20 @@ class Storage:
         self.tasks[obj.id] = obj
 
     def add_project(self, id: str):
+        assert id not in self.projects
         self.projects[id] = Project(id=id, tasks=[])
+
+        self.root.mkdir(exist_ok=True)
+        (self.root / f"{id}.md").touch()
+        (self.root / f"{id}").mkdir()
+
+    def delete_project(self, id: str):
+        assert id in self.projects
+        (self.root / f"{id}.md").unlink(missing_ok=True)
+        if (self.root / f"{id}").is_dir():
+            (self.root / f"{id}").rmdir()
+
+        del self.projects[id]
+        deleted_tasks = [ t.id for t in self.tasks.values() if t.project_id == id ]
+        for task in deleted_tasks:
+            del self.tasks[task]
