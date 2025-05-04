@@ -11,6 +11,7 @@ where = ["src"]
 
 [project.scripts]
 tasks = "tasks.main:main"
+proj = "tasks.project:main"
 
 [build-system]
 requires = ["setuptools>=70.1"]

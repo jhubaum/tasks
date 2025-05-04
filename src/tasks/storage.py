@@ -19,6 +19,7 @@ class Task:
 @dataclass
 class Project:
     id: str
+    name: str
     tasks: List[str] # A list of uuids for tasks
 
 @dataclass
@@ -42,7 +43,7 @@ class Storage:
         projects = {}
 
         for proj in data['projects']:
-            projects[proj['id']] = Project(id=proj['id'], tasks=proj['tasks'])
+            projects[proj['id']] = Project(id=proj['id'], name=proj['name'], tasks=proj['tasks'])
 
         for id, task in data['tasks'].items():
             tasks[id] = Task(id=id, title=task['title'], project_id=task.get('project_id'))
@@ -55,7 +56,7 @@ class Storage:
 
         data = {}
         data["tasks"] = { id: dict(title=t.title, project_id=t.project_id) for id, t in self.tasks.items() }
-        data["projects"] = [ dict(id=p.id, tasks=p.tasks) for p in self.projects.values() ]
+        data["projects"] = [ dict(id=p.id, name=p.name, tasks=p.tasks) for p in self.projects.values() ]
 
         with file.open('w') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
@@ -75,9 +76,11 @@ class Storage:
         assert obj.id not in self.tasks
         self.tasks[obj.id] = obj
 
-    def add_project(self, id: str):
+    def add_project(self, id: str, name):
+        if name is None:
+            name = id
         assert id not in self.projects
-        self.projects[id] = Project(id=id, tasks=[])
+        self.projects[id] = Project(id=id, name=name, tasks=[])
 
         self.root.mkdir(exist_ok=True)
         (self.root / f"{id}.md").touch()
