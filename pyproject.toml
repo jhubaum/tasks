@@ -10,7 +10,6 @@ dependencies = [
 where = ["src"]
 
 [project.scripts]
-tasks = "tasks.main:main"
 proj = "tasks.project:main"
 
 [build-system]

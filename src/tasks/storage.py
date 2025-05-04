@@ -1,33 +1,56 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
-import uuid
 
+import subprocess
 import json
+import logging
 
 DATABASE = "data.json"
 
 # TODO: Use pydantic for storing jsons
 
+
 @dataclass
 class Task:
+    id: int
     title: str
-    id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    project_id: Optional[str] = None
+    description: Optional[str]
+    status: str
+    project: Optional[str] = None
+
+
+def iter_tasks() -> List[Task]:
+    tasks = subprocess.run(["task", "export"], stdout=subprocess.PIPE)
+    tasks.check_returncode()
+    for task in json.loads(tasks.stdout):
+        if task["status"] == "deleted" or task["status"] == "completed":
+            continue
+        title = task["description"].strip()
+        description = None
+        if "\n" in title:
+            title, description = title.split("\n", maxsplit=1)
+        yield Task(
+            id=task["id"],
+            title=title,
+            description=description,
+            status=task["status"],
+            project=task.get("project"),
+        )
 
 
 @dataclass
 class Project:
     id: str
     name: str
-    tasks: List[str] # A list of uuids for tasks
+    tasks: List[Task]
+
 
 @dataclass
 class Storage:
     root: Path
-    tasks: Dict[str, Task]
+    tasks: List[Task]
     projects: Dict[str, Project]
-
 
     @staticmethod
     def load(path: Path) -> "Storage":
@@ -36,18 +59,27 @@ class Storage:
         if not file.exists():
             return Storage(root=path, tasks={}, projects={})
 
-        with file.open('r') as f:
+        with file.open("r") as f:
             data = json.load(f)
 
-        tasks = {}
         projects = {}
 
-        for proj in data['projects']:
-            projects[proj['id']] = Project(id=proj['id'], name=proj['name'], tasks=proj['tasks'])
+        for proj in data["projects"]:
+            projects[proj["id"]] = Project(id=proj["id"], name=proj["name"], tasks=[])
 
-        for id, task in data['tasks'].items():
-            tasks[id] = Task(id=id, title=task['title'], project_id=task.get('project_id'))
+        tasks = []
+        for task in iter_tasks():
+            if task.project is None:
+                tasks.append(task)
+                continue
 
+            if task.project not in projects:
+                logging.warning(
+                    f"Project '{task.project}' does not exist. Task is ignored"
+                )
+                continue
+
+            projects[task.project].tasks.append(task)
 
         return Storage(root=path, tasks=tasks, projects=projects)
 
@@ -55,26 +87,14 @@ class Storage:
         file = self.root / DATABASE
 
         data = {}
-        data["tasks"] = { id: dict(title=t.title, project_id=t.project_id) for id, t in self.tasks.items() }
-        data["projects"] = [ dict(id=p.id, name=p.name, tasks=p.tasks) for p in self.projects.values() ]
+        data["projects"] = [dict(id=p.id, name=p.name) for p in self.projects.values()]
 
-        with file.open('w') as f:
+        with file.open("w") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
-
 
     @staticmethod
     def pwd(name: str):
         return Storage.load(Path.cwd() / name)
-
-    def add_task(self, task: str, proj_id: Optional[str]):
-        obj = Task(title=task, project_id=proj_id)
-
-        if proj_id is not None:
-            assert proj_id in self.projects
-            self.projects[proj_id].tasks.append(obj.id)
-
-        assert obj.id not in self.tasks
-        self.tasks[obj.id] = obj
 
     def add_project(self, id: str, name):
         if name is None:
@@ -92,7 +112,7 @@ class Storage:
         if (self.root / f"{id}").is_dir():
             (self.root / f"{id}").rmdir()
 
+        for task in self.projects[id]:
+            subprocess.run(["task", "delete", str(task.id)]).check_returncode()
         del self.projects[id]
-        deleted_tasks = [ t.id for t in self.tasks.values() if t.project_id == id ]
-        for task in deleted_tasks:
-            del self.tasks[task]
+        self.save()
