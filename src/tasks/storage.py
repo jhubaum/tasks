@@ -6,6 +6,8 @@ import subprocess
 import json
 import logging
 
+# TODO: Since I'm currently only storing projects, and they already have files associated with them
+# the database isn't necessary
 DATABASE = "data.json"
 
 # TODO: Use pydantic for storing jsons
@@ -60,6 +62,13 @@ class Project:
     id: str
     name: str
     tasks: List[Task]
+    tags: List[str]
+
+    def print_title(self):
+        tags = ""
+        if len(self.tags) > 0:
+            tags = " +" + " +".join(self.tags)
+        print(f"{self.name} ({self.id}){tags}: {len(self.tasks)} task(s)")
 
 
 @dataclass
@@ -81,7 +90,9 @@ class Storage:
         projects = {}
 
         for proj in data["projects"]:
-            projects[proj["id"]] = Project(id=proj["id"], name=proj["name"], tasks=[])
+            projects[proj["id"]] = Project(
+                id=proj["id"], name=proj["name"], tasks=[], tags=proj["tags"]
+            )
 
         tasks = []
         for task in iter_tasks():
@@ -103,7 +114,9 @@ class Storage:
         file = self.root / DATABASE
 
         data = {}
-        data["projects"] = [dict(id=p.id, name=p.name) for p in self.projects.values()]
+        data["projects"] = [
+            dict(id=p.id, name=p.name, tags=p.tags) for p in self.projects.values()
+        ]
 
         with file.open("w") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
@@ -112,11 +125,11 @@ class Storage:
     def pwd(name: str):
         return Storage.load(Path.cwd() / name)
 
-    def add_project(self, id: str, name):
+    def add_project(self, id: str, name: Optional[str], tags: List[str]):
         if name is None:
             name = id
         assert id not in self.projects
-        self.projects[id] = Project(id=id, name=name, tasks=[])
+        self.projects[id] = Project(id=id, name=name, tasks=[], tags=tags)
 
         self.root.mkdir(exist_ok=True)
         (self.root / f"{id}.md").touch()
