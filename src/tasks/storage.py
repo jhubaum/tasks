@@ -20,11 +20,27 @@ class Task:
     project: Optional[str] = None
 
 
+def context_filter(context):
+    match context:
+        case "work":
+            return lambda tags: "sh" in tags or "nvim" in tags or "dotfile" in tags
+        case "private":
+            return lambda tags: "sh" not in tags
+        case _:
+            raise ValueError(f"Unsupported context '{context}'")
+
+
 def iter_tasks() -> List[Task]:
     tasks = subprocess.run(["task", "export"], stdout=subprocess.PIPE)
     tasks.check_returncode()
+
+    context_res = subprocess.run(["task", "_get", "rc.context"], stdout=subprocess.PIPE)
+    context_res.check_returncode()
+    is_in_context = context_filter(context_res.stdout.decode("utf8").strip())
     for task in json.loads(tasks.stdout):
         if task["status"] == "deleted" or task["status"] == "completed":
+            continue
+        if not is_in_context(task.get("tags", {})):
             continue
         title = task["description"].strip()
         description = None
@@ -57,7 +73,7 @@ class Storage:
         file = path / DATABASE
 
         if not file.exists():
-            return Storage(root=path, tasks={}, projects={})
+            return Storage(root=path, tasks=[], projects={})
 
         with file.open("r") as f:
             data = json.load(f)
