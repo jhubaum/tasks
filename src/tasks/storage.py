@@ -129,6 +129,8 @@ class Storage:
         if name is None:
             name = id
         assert id not in self.projects
+        if tags is None:
+            tags = []
         self.projects[id] = Project(id=id, name=name, tasks=[], tags=tags)
 
         self.root.mkdir(exist_ok=True)
