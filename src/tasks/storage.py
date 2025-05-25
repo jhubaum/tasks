@@ -64,6 +64,26 @@ class Project:
     tasks: List[Task]
     tags: List[str]
 
+    @staticmethod
+    def new(id: str, name: Optional[str], tags: Optional[List] = None):
+        if name is None:
+            name = id
+        if tags is None:
+            tags = []
+        return Project(id=id, name=name, tasks=[], tags=tags)
+
+    def ensure_files(self, root: Path):
+        (root / f"{self.id}.md").touch()
+        (root / f"{self.id}").mkdir()
+
+    def delete(self, root: Path):
+        (self.root / f"{id}.md").unlink(missing_ok=True)
+        if (self.root / f"{id}").is_dir():
+            (self.root / f"{id}").rmdir()
+
+        for task in self.projects[id]:
+            subprocess.run(["task", "delete", str(task.id)]).check_returncode()
+
     def print_title(self):
         tags = ""
         if len(self.tags) > 0:
@@ -125,25 +145,16 @@ class Storage:
     def pwd(name: str):
         return Storage.load(Path.cwd() / name)
 
-    def add_project(self, id: str, name: Optional[str], tags: List[str]):
-        if name is None:
-            name = id
-        assert id not in self.projects
-        if tags is None:
-            tags = []
-        self.projects[id] = Project(id=id, name=name, tasks=[], tags=tags)
+    def add_project(self, project: Project)
+        assert project.id not in self.projects
+        self.projects[id] = project
+        project.ensure_files()
 
         self.root.mkdir(exist_ok=True)
         (self.root / f"{id}.md").touch()
         (self.root / f"{id}").mkdir()
 
     def delete_project(self, id: str):
-        assert id in self.projects
-        (self.root / f"{id}.md").unlink(missing_ok=True)
-        if (self.root / f"{id}").is_dir():
-            (self.root / f"{id}").rmdir()
-
-        for task in self.projects[id]:
-            subprocess.run(["task", "delete", str(task.id)]).check_returncode()
+        self.projects[id].delete(root)
         del self.projects[id]
         self.save()

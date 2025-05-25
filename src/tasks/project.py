@@ -2,14 +2,14 @@ from argparse import ArgumentParser
 import subprocess
 from pathlib import Path
 
-from .storage import Storage
+from .storage import Storage, Project
 
 STORAGE_NAME = Path.home() / "notes/projects"
 
 
 def add(args):
     s = Storage.pwd(STORAGE_NAME)
-    s.add_project(args.id, args.name, args.tags)
+    s.add_project(Project.new(args.id, args.name, args.tags))
     s.save()
 
 
