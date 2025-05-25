@@ -77,11 +77,11 @@ class Project:
         (root / f"{self.id}").mkdir()
 
     def delete(self, root: Path):
-        (self.root / f"{id}.md").unlink(missing_ok=True)
-        if (self.root / f"{id}").is_dir():
-            (self.root / f"{id}").rmdir()
+        (root / f"{id}.md").unlink(missing_ok=True)
+        if (root / f"{id}").is_dir():
+            (root / f"{id}").rmdir()
 
-        for task in self.projects[id]:
+        for task in self.tasks:
             subprocess.run(["task", "delete", str(task.id)]).check_returncode()
 
     def print_title(self):
@@ -145,16 +145,15 @@ class Storage:
     def pwd(name: str):
         return Storage.load(Path.cwd() / name)
 
-    def add_project(self, project: Project)
+    def add_project(self, project: Project):
         assert project.id not in self.projects
         self.projects[id] = project
-        project.ensure_files()
-
         self.root.mkdir(exist_ok=True)
-        (self.root / f"{id}.md").touch()
-        (self.root / f"{id}").mkdir()
+        project.ensure_files(self.root)
+
+        self.save()
 
     def delete_project(self, id: str):
-        self.projects[id].delete(root)
+        self.projects[id].delete(self.root)
         del self.projects[id]
         self.save()
